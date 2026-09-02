@@ -3,8 +3,11 @@ from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import classification_report, confusion_matrix
+import mlflow
+import mlflow.sklearn
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 
-
+mlflow.set_tracking_uri("sqlite:///mlflow.db")
 def load_data(path: str) -> pd.DataFrame:
     
     df = pd.read_csv(path)
@@ -58,7 +61,13 @@ def evaluate_model(model, X_test, y_test):
 
     print("\nClassification Report:")
     print(classification_report(y_test, y_pred, target_names=["Benign", "Malignant"]))
-
+    metrics = {
+        "accuracy": accuracy_score(y_test, y_pred),
+        "precision_malignant": precision_score(y_test, y_pred),
+        "recall_malignant": recall_score(y_test, y_pred),
+        "f1_malignant": f1_score(y_test, y_pred),
+    }
+    return metrics
 
 if __name__ == "__main__":
     df = load_data("data/raw/data.csv")
@@ -66,10 +75,30 @@ if __name__ == "__main__":
     X, y = split_features_target(df)
     X_train, X_test, y_train, y_test = split_train_test(X, y)
 
-    print("=== Logistic Regression ===")
-    lr_model = train_model(X_train, y_train)
-    evaluate_model(lr_model, X_test, y_test)
+    mlflow.set_experiment("disease_prediction")
 
-    print("\n=== Random Forest ===")
-    rf_model = train_random_forest(X_train, y_train)
-    evaluate_model(rf_model, X_test, y_test)
+    # === Logistic Regression ===
+    with mlflow.start_run(run_name="logistic_regression"):
+        lr_model = train_model(X_train, y_train)
+        metrics = evaluate_model(lr_model, X_test, y_test)
+
+        mlflow.log_param("model_type", "LogisticRegression")
+        mlflow.log_param("max_iter", 5000)
+        mlflow.log_param("class_weight", "balanced")
+        mlflow.log_metrics(metrics)
+        mlflow.sklearn.log_model(lr_model, "model")
+
+    # === Random Forest ===
+    with mlflow.start_run(run_name="random_forest"):
+        rf_model = train_random_forest(X_train, y_train)
+        metrics = evaluate_model(rf_model, X_test, y_test)
+
+        mlflow.log_param("model_type", "RandomForestClassifier")
+        mlflow.log_param("n_estimators", 200)
+        mlflow.log_param("class_weight", "balanced")
+        mlflow.log_metrics(metrics)
+        mlflow.sklearn.log_model(
+    rf_model,
+    "model",
+    registered_model_name="disease_prediction_model"
+)
