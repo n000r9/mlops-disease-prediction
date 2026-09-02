@@ -10,8 +10,8 @@ This project builds a machine learning system for disease prediction and applies
 
 - Git & GitHub
 - Data Versioning with DVC
-- Experiment Tracking with MLflow
 - Model Training & Evaluation
+- Experiment Tracking with MLflow
 - Model Registry
 - Docker
 - FastAPI
